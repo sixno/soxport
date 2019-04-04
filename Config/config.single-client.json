@@ -1,0 +1,9 @@
+{
+  "server_addr": "127.0.0.1",
+  "server_pass": 2206,
+  "server_port": 8080,
+  "client_port": 80,
+  "client_addr": "127.0.0.1",
+  "client_name": "sox:http",
+  "_debug_mode": false
+}

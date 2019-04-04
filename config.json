@@ -1,0 +1,19 @@
+{
+  "server_addr": "127.0.0.1",
+  "server_pass": 2206,
+  "worker_list": [
+    {
+      "server_port": 8080,
+      "client_port": 80,
+      "client_addr": "127.0.0.1",
+      "client_name": "sox:http"
+    }
+    ,{
+      "server_port": 2022,
+      "client_port": 22,
+      "client_addr": "127.0.0.1",
+      "client_name": "sox:ssh"
+    }
+  ],
+  "_debug_mode": false
+}
