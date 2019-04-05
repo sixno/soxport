@@ -102,6 +102,8 @@ function build_client_worker()
 {
 	$client_worker = new Worker();
 
+	$client_worker->name = 'soxport';
+
 	$client_worker->channel = array();
 	$client_worker->service = array();
 
