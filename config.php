@@ -117,61 +117,43 @@ function build_client_worker()
 			Channel\Client::on('cs_connect_'.$k, function($event_data) use($client_worker,$k,$v){
 				// _debug_echo('client['.$v['client_name'].']: connection from out network.');
 
-				$client_worker->service[$k.':'.$event_data['conn']['imei']] = new AsyncTcpConnection('tcp://'.$v['client_addr'].':'.$v['client_port']);
+				$client_worker->service[$k.':'.$event_data['conn']] = new AsyncTcpConnection('tcp://'.$v['client_addr'].':'.$v['client_port']);
 
-				// $client_worker->service[$k.':'.$event_data['conn']['imei']]->onConnect = function($conn) use($event_data,$k,$v){
-				// 	_debug_echo('client['.$v['client_name'].']['.$event_data['conn']['imei'].']: connection['.$v['client_addr'].':'.$v['client_port'].'] works.');
+				// $client_worker->service[$k.':'.$event_data['conn']]->onConnect = function($conn) use($event_data,$k,$v){
+				// 	_debug_echo('client['.$v['client_name'].']['.$event_data['conn'].']: connection['.$v['client_addr'].':'.$v['client_port'].'] works.');
 
-				// 	$connect_data['conn'] = array(
-				// 		'addr' => $conn->getRemoteIp(),
-				// 		'port' => $conn->getRemotePort(),
-				// 		'imei' => $event_data['conn']['imei'],
-				// 	);
+				// 	$connect_data = ['conn' => $event_data['conn']];
 
 				// 	Channel\Client::publish('sc_connect_'.$k,$connect_data);
 				// };
 
-				$client_worker->service[$k.':'.$event_data['conn']['imei']]->onMessage = function($conn,$data) use($event_data,$k){
-					$message_data = array();
-
-					$message_data['data'] = $data;
-
-					$message_data['conn'] = array(
-						'addr' => $conn->getRemoteIp(),
-						'port' => $conn->getRemotePort(),
-						'imei' => $event_data['conn']['imei'],
-					);
+				$client_worker->service[$k.':'.$event_data['conn']]->onMessage = function($conn,$data) use($event_data,$k){
+					$message_data = ['conn' => $event_data['conn'],'data' => $data];
 
 					Channel\Client::publish('sc_message_'.$k,$message_data);
 				};
 
-				$client_worker->service[$k.':'.$event_data['conn']['imei']]->onClose = function($conn) use($event_data,$k){
-					$close_data = array();
-
-					$close_data['conn'] = [
-						'addr' => $conn->getRemoteIp(),
-						'port' => $conn->getRemotePort(),
-						'imei' => $event_data['conn']['imei'],
-					];
+				$client_worker->service[$k.':'.$event_data['conn']]->onClose = function($conn) use($event_data,$k){
+					$close_data = ['conn' => $event_data['conn']];
 					
 					Channel\Client::publish('sc_close_'.$k,$close_data);
 				};
 				
-				$client_worker->service[$k.':'.$event_data['conn']['imei']]->connect();
+				$client_worker->service[$k.':'.$event_data['conn']]->connect();
 
-				// _debug_echo('client['.$v['client_name'].']['.$event_data['conn']['imei'].']: connection['.$v['client_addr'].':'.$v['client_port'].'] starts.');
+				// _debug_echo('client['.$v['client_name'].']['.$event_data['conn'].']: connection['.$v['client_addr'].':'.$v['client_port'].'] starts.');
 			});
 
 			Channel\Client::on('cs_message_'.$k,function($event_data) use($client_worker,$k){
-				$client_worker->service[$k.':'.$event_data['conn']['imei']]->send($event_data['data']);
+				$client_worker->service[$k.':'.$event_data['conn']]->send($event_data['data']);
 			});
 
 			Channel\Client::on('cs_close_'.$k,function($event_data) use($client_worker,$k){
-				if(isset($client_worker->service[$k.':'.$event_data['conn']['imei']]))
+				if(isset($client_worker->service[$k.':'.$event_data['conn']]))
 				{
-					$client_worker->service[$k.':'.$event_data['conn']['imei']]->close();
+					$client_worker->service[$k.':'.$event_data['conn']]->close();
 
-					unset($client_worker->service[$k.':'.$event_data['conn']['imei']]);
+					unset($client_worker->service[$k.':'.$event_data['conn']]);
 				}
 			});
 		}
@@ -196,52 +178,38 @@ function build_server_worker()
 			Channel\Client::connect('127.0.0.1',conf('server_pass'));
 
 			Channel\Client::on('sc_message_'.$k,function($event_data) use ($server_worker,$k){
-				if(isset($server_worker[$k]['worker_sock']->connections[$event_data['conn']['imei']])){
-					$server_worker[$k]['worker_sock']->connections[$event_data['conn']['imei']]->send($event_data['data']);
+				if(isset($server_worker[$k]['worker_sock']->connections[$event_data['conn']])){
+					$server_worker[$k]['worker_sock']->connections[$event_data['conn']]->send($event_data['data']);
 				}
 			});
 
 			Channel\Client::on('sc_close_'.$k,function($event_data) use ($server_worker,$k){
-				if(isset($server_worker[$k]['worker_sock']->connections[$event_data['conn']['imei']])){
-					$server_worker[$k]['worker_sock']->connections[$event_data['conn']['imei']]->close();
+				if(isset($server_worker[$k]['worker_sock']->connections[$event_data['conn']])){
+					$server_worker[$k]['worker_sock']->connections[$event_data['conn']]->close();
 				}
 			});
 
 			// Channel\Client::on('sc_connect_'.$k,function($event_data) use($server_worker,$k,$v){
-			// 	_debug_echo('client['.$v['client_name'].']['.$event_data['conn']['imei'].']: connection['.$v['client_addr'].':'.$v['client_port'].'] works.');
+			// 	_debug_echo('client['.$v['client_name'].']['.$event_data['conn'].']: connection['.$v['client_addr'].':'.$v['client_port'].'] works.');
 			// });
 		};
 
 		$server_worker[$k]['worker_sock']->onConnect = function($connection) use($server_worker,$k){
-			$connection_data['conn'] = array(
-				'addr' => $connection->getRemoteIp(),
-				'port' => $connection->getRemotePort(),
-				'imei' => $connection->id,
-			);
+			$connection_data = ['conn' => $connection->id];
 		
-			Channel\Client::publish('cs_connect_'.$k, $connection_data);
+			Channel\Client::publish('cs_connect_'.$k,$connection_data);
 			
 			$connection->onMessage = function($connection, $data) use($k){
-				$message_data['conn'] = array(
-					'addr' => $connection->getRemoteIp(),
-					'port' => $connection->getRemotePort(),
-					'imei' => $connection->id,
-				);
-
-				$message_data['data'] = $data;
+				$message_data = ['conn' => $connection->id,'data' => $data];
 		
 				Channel\Client::publish('cs_message_'.$k,$message_data);
 				
 			};
 			
 			$connection->onClose = function ($connection) use($k){
-				$close_data['conn'] = array(
-					'addr' => $connection->getRemoteIp(),
-					'port' => $connection->getRemotePort(),
-					'imei' => $connection->id,
-				);
+				$close_data = ['conn' => $connection->id];
 			
-				Channel\Client::publish('cs_close_'.$k, $close_data);
+				Channel\Client::publish('cs_close_'.$k,$close_data);
 			};
 		};
 	}
