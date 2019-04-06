@@ -1,6 +1,6 @@
 ﻿# soxport
 
-这是一个端口映射工具，参考了[augushong / workerman-port-mapping](https://gitee.com/augushong/workerman-port-mapping)，对原作进行了代码整理和优化精简，使用此工具可实现的端口映射和内网穿透（需要一台公网主机）。
+这是一个端口映射工具，参考了[augushong / workerman-port-mapping](https://gitee.com/augushong/workerman-port-mapping)，对原作进行了代码整理和优化精简，使用此工具可实现端口映射和内网穿透（需要一台公网主机）。
 
 Config文件夹下是配置示例，此工具只在Linux测试过，windows下没做过测试亦无需求。
 
