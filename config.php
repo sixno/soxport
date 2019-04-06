@@ -117,21 +117,21 @@ function build_client_worker()
 			Channel\Client::on('cs_connect_'.$k, function($event_data) use($client_worker,$k,$v){
 				// _debug_echo('client['.$v['client_name'].']: connection from out network.');
 
-				$client_worker->service[$event_data['conn']['imei']] = new AsyncTcpConnection('tcp://'.$v['client_addr'].':'.$v['client_port']);
+				$client_worker->service[$k.':'.$event_data['conn']['imei']] = new AsyncTcpConnection('tcp://'.$v['client_addr'].':'.$v['client_port']);
 
-				$client_worker->service[$event_data['conn']['imei']]->onConnect = function($conn) use($event_data,$k,$v){
-					// _debug_echo('client['.$v['client_name'].']['.$event_data['conn']['imei'].']: connection['.$v['client_addr'].':'.$v['client_port'].'] works.');
+				// $client_worker->service[$k.':'.$event_data['conn']['imei']]->onConnect = function($conn) use($event_data,$k,$v){
+				// 	_debug_echo('client['.$v['client_name'].']['.$event_data['conn']['imei'].']: connection['.$v['client_addr'].':'.$v['client_port'].'] works.');
 
-					$connect_data['conn'] = array(
-						'addr' => $conn->getRemoteIp(),
-						'port' => $conn->getRemotePort(),
-						'imei' => $event_data['conn']['imei'],
-					);
+				// 	$connect_data['conn'] = array(
+				// 		'addr' => $conn->getRemoteIp(),
+				// 		'port' => $conn->getRemotePort(),
+				// 		'imei' => $event_data['conn']['imei'],
+				// 	);
 
-					Channel\Client::publish('sc_connect_'.$k,$connect_data);
-				};
+				// 	Channel\Client::publish('sc_connect_'.$k,$connect_data);
+				// };
 
-				$client_worker->service[$event_data['conn']['imei']]->onMessage = function($conn,$data) use($event_data,$k){
+				$client_worker->service[$k.':'.$event_data['conn']['imei']]->onMessage = function($conn,$data) use($event_data,$k){
 					$message_data = array();
 
 					$message_data['data'] = $data;
@@ -145,7 +145,7 @@ function build_client_worker()
 					Channel\Client::publish('sc_message_'.$k,$message_data);
 				};
 
-				$client_worker->service[$event_data['conn']['imei']]->onClose = function($conn) use($event_data,$k){
+				$client_worker->service[$k.':'.$event_data['conn']['imei']]->onClose = function($conn) use($event_data,$k){
 					$close_data = array();
 
 					$close_data['conn'] = [
@@ -157,21 +157,21 @@ function build_client_worker()
 					Channel\Client::publish('sc_close_'.$k,$close_data);
 				};
 				
-				$client_worker->service[$event_data['conn']['imei']]->connect();
+				$client_worker->service[$k.':'.$event_data['conn']['imei']]->connect();
 
 				// _debug_echo('client['.$v['client_name'].']['.$event_data['conn']['imei'].']: connection['.$v['client_addr'].':'.$v['client_port'].'] starts.');
 			});
 
-			Channel\Client::on('cs_message_'.$k,function($event_data) use($client_worker){
-				$client_worker->service[$event_data['conn']['imei']]->send($event_data['data']);
+			Channel\Client::on('cs_message_'.$k,function($event_data) use($client_worker,$k){
+				$client_worker->service[$k.':'.$event_data['conn']['imei']]->send($event_data['data']);
 			});
 
-			Channel\Client::on('cs_close_'.$k,function($event_data) use($client_worker){
-				if(isset($client_worker->service[$event_data['conn']['imei']]))
+			Channel\Client::on('cs_close_'.$k,function($event_data) use($client_worker,$k){
+				if(isset($client_worker->service[$k.':'.$event_data['conn']['imei']]))
 				{
-					$client_worker->service[$event_data['conn']['imei']]->close();
+					$client_worker->service[$k.':'.$event_data['conn']['imei']]->close();
 
-					unset($client_worker->service[$event_data['conn']['imei']]);
+					unset($client_worker->service[$k.':'.$event_data['conn']['imei']]);
 				}
 			});
 		}
@@ -207,9 +207,9 @@ function build_server_worker()
 				}
 			});
 
-			Channel\Client::on('sc_connect_'.$k,function($event_data) use($server_worker,$k,$v){
-				// _debug_echo('client['.$v['client_name'].']['.$event_data['conn']['imei'].']: connection['.$v['client_addr'].':'.$v['client_port'].'] works.');
-			});
+			// Channel\Client::on('sc_connect_'.$k,function($event_data) use($server_worker,$k,$v){
+			// 	_debug_echo('client['.$v['client_name'].']['.$event_data['conn']['imei'].']: connection['.$v['client_addr'].':'.$v['client_port'].'] works.');
+			// });
 		};
 
 		$server_worker[$k]['worker_sock']->onConnect = function($connection) use($server_worker,$k){
