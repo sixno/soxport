@@ -2,6 +2,7 @@
 
 use \Workerman\Worker;
 use \Workerman\Connection\AsyncTcpConnection;
+use \Workerman\Lib\Timer;
 
 require_once __DIR__.'/Workerman/Autoloader.php';
 
@@ -119,13 +120,13 @@ function build_client_worker()
 
 				$client_worker->service[$k.':'.$event_data['conn']] = new AsyncTcpConnection('tcp://'.$v['client_addr'].':'.$v['client_port']);
 
-				// $client_worker->service[$k.':'.$event_data['conn']]->onConnect = function($conn) use($event_data,$k,$v){
-				// 	_debug_echo('client['.$v['client_name'].']['.$event_data['conn'].']: connection['.$v['client_addr'].':'.$v['client_port'].'] works.');
+				$client_worker->service[$k.':'.$event_data['conn']]->onConnect = function($conn) use($event_data,$k,$v){
+					// _debug_echo('client['.$v['client_name'].']['.$event_data['conn'].']: connection['.$v['client_addr'].':'.$v['client_port'].'] works.');
 
-				// 	$connect_data = ['conn' => $event_data['conn']];
+					$connect_data = ['conn' => $event_data['conn']];
 
-				// 	Channel\Client::publish('sc_connect_'.$k,$connect_data);
-				// };
+					Channel\Client::publish('sc_connect_'.$k,$connect_data);
+				};
 
 				$client_worker->service[$k.':'.$event_data['conn']]->onMessage = function($conn,$data) use($event_data,$k){
 					$message_data = ['conn' => $event_data['conn'],'data' => $data];
@@ -165,6 +166,7 @@ function build_server_worker()
 	$tunnel_server = new Channel\Server('0.0.0.0',conf('server_pass'));
 
 	$server_worker = array();
+	$_timer_worker = array();
 
 	init_channel($server_worker);
 
@@ -174,8 +176,19 @@ function build_server_worker()
 
 		$server_worker[$k]['worker_sock']->name = $v['client_name'];
 
-		$server_worker[$k]['worker_sock']->onWorkerStart = function() use($server_worker,$k,$v){
+		$server_worker[$k]['worker_sock']->onWorkerStart = function() use($server_worker,$k,$v,&$_timer_worker){
 			Channel\Client::connect('127.0.0.1',conf('server_pass'));
+
+			Channel\Client::on('sc_connect_'.$k,function($event_data) use($server_worker,$k,$v,&$_timer_worker){
+				// _debug_echo('client['.$v['client_name'].']['.$event_data['conn'].']: connection['.$v['client_addr'].':'.$v['client_port'].'] works.');
+
+				if(isset($_timer_worker[$k.':'.$event_data['conn']]))
+				{
+					Timer::del($_timer_worker[$k.':'.$event_data['conn']]);
+
+					unset($_timer_worker[$k.':'.$event_data['conn']]);
+				}
+			});
 
 			Channel\Client::on('sc_message_'.$k,function($event_data) use ($server_worker,$k){
 				if(isset($server_worker[$k]['worker_sock']->connections[$event_data['conn']])){
@@ -188,26 +201,32 @@ function build_server_worker()
 					$server_worker[$k]['worker_sock']->connections[$event_data['conn']]->close();
 				}
 			});
-
-			// Channel\Client::on('sc_connect_'.$k,function($event_data) use($server_worker,$k,$v){
-			// 	_debug_echo('client['.$v['client_name'].']['.$event_data['conn'].']: connection['.$v['client_addr'].':'.$v['client_port'].'] works.');
-			// });
 		};
 
-		$server_worker[$k]['worker_sock']->onConnect = function($connection) use($server_worker,$k){
+		$server_worker[$k]['worker_sock']->onConnect = function($connection) use($server_worker,$k,&$_timer_worker){
 			$connection_data = ['conn' => $connection->id];
 		
 			Channel\Client::publish('cs_connect_'.$k,$connection_data);
+
+			$_timer_worker[$k.':'.$connection->id] = Timer::add(30,function() use($connection){
+				$connection->close();
+			},[],FALSE);
 			
-			$connection->onMessage = function($connection, $data) use($k){
+			$connection->onMessage = function($connection,$data) use($k){
 				$message_data = ['conn' => $connection->id,'data' => $data];
 		
 				Channel\Client::publish('cs_message_'.$k,$message_data);
-				
 			};
 			
-			$connection->onClose = function ($connection) use($k){
+			$connection->onClose = function($connection) use($k,&$_timer_worker){
 				$close_data = ['conn' => $connection->id];
+
+				if(isset($_timer_worker[$k.':'.$connection->id]))
+				{
+					Timer::del($_timer_worker[$k.':'.$connection->id]);
+
+					unset($_timer_worker[$k.':'.$connection->id]);
+				}
 			
 				Channel\Client::publish('cs_close_'.$k,$close_data);
 			};
